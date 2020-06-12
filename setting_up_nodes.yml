@@ -1,0 +1,48 @@
+---
+ - name: setting up the both master and minions node
+   hosts: aws
+   vars_files:
+       - vars
+   tasks:
+      - name: Disabling selinux
+        shell:
+          cmd: "sed -i 's/SELINUX=enforcing/SELINUX=disabled/'  /etc/selinux/config"
+
+      - name: Enabling Kernel Bridge
+        shell:
+          cmd: modprobe br_netfilter
+
+      - name: Enabling Bridge Firewall Rule
+        shell:
+          cmd: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+
+
+      - name: Disabling the swap
+        shell:
+          cmd: swapoff  -a
+
+      - name: Creating a repo for kubernetes
+        file:
+         path: /etc/yum.repos.d/kubernetes.repo
+         state: touch
+
+      - name: Adding repo details in kubernetes repo file 
+        blockinfile:
+         path: /etc/yum.repos.d/kubernetes.repo
+         block: |
+          [kube]
+          baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+          gpgcheck=0       
+
+      - name: installing docker and kubeadm 
+        yum: 
+         name: "{{ item }}"
+         state: present
+        with_items: "{{ packages }}"
+
+      - name: Starting and Enabling the required services
+        service:
+         name: "{{ item }}"
+         state: started
+         enabled: yes
+        with_items: "{{ services }}"
